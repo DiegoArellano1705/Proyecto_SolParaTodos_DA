@@ -1,0 +1,44 @@
+# Carpetas autogeneradas por Unity
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Mm]emoryCaptures/
+/[Pp]rofiler[Cc]aptures/
+/.utmp/
+
+# Archivos de caché de Visual Studio, VS Code y Gradle
+.vs/
+/.vscode/
+.gradle/
+
+# Archivos de proyecto y soluciones
+ExportedObj/
+.consulo/
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.tmp
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+# Metadatos generados por Unity
+*.pidb.meta
+*.pdb.meta
+*.mdb.meta
+
+# Compilaciones
+*.apk
+*.aab
+*.unitypackage
