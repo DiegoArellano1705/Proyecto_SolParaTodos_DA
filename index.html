@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sol Para Todos AR | Descarga Oficial</title>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☀️</text></svg>">
+    <style>
+        :root {
+            --bg: #060e1a;
+            --card-bg: rgba(10, 24, 43, 0.92);
+            --card-border: rgba(0, 212, 255, 0.35);
+            --card-glow: rgba(0, 212, 255, 0.15);
+            --primary-solar: #f59e0b;
+            --primary-hover: #fbbf24;
+            --btn-green: #10b981;
+            --btn-green-hover: #34d399;
+            --cyan-tech: #00d4ff;
+            --text: #f8fafc;
+            --text-muted: #94a3b8;
+            --text-soft: #cbd5e1;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 1.5rem;
+            background-image:
+                radial-gradient(circle at 50% 10%, rgba(0, 212, 255, 0.12) 0%, transparent 60%),
+                linear-gradient(rgba(0, 212, 255, 0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 212, 255, 0.04) 1px, transparent 1px);
+            background-size: 100% 100%, 32px 32px, 32px 32px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-radius: 1.5rem;
+            padding: 2.25rem 2rem;
+            max-width: 520px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 40px var(--card-glow);
+            border: 1.5px solid var(--card-border);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Marco superior brillante de celda solar */
+        .card::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, transparent, var(--cyan-tech), var(--primary-solar), transparent);
+        }
+
+        .badge-ong {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            color: var(--cyan-tech);
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            padding: 0.35rem 0.85rem;
+            border-radius: 9999px;
+            margin-bottom: 1.25rem;
+        }
+
+        h1 {
+            font-size: 2rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            margin-bottom: 0.4rem;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        h1 span {
+            color: var(--primary-solar);
+        }
+
+        .author-tag {
+            font-size: 0.825rem;
+            color: var(--cyan-tech);
+            margin-bottom: 1.25rem;
+            font-weight: 600;
+        }
+
+        .desc {
+            color: var(--text-soft);
+            font-size: 0.95rem;
+            line-height: 1.6;
+            margin-bottom: 1.5rem;
+        }
+
+        /* Grilla de 3 pilares interactivos */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.65rem;
+            margin-bottom: 1.75rem;
+            text-align: left;
+        }
+
+        .feature-item {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 0.85rem;
+            padding: 0.85rem 0.7rem;
+            font-size: 0.775rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+
+        .feature-icon {
+            font-size: 1.25rem;
+        }
+
+        .feature-title {
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        .feature-sub {
+            color: var(--text-muted);
+            font-size: 0.7rem;
+            line-height: 1.3;
+        }
+
+        /* Botón de descarga */
+        .btn-download {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.65rem;
+            width: 100%;
+            background: linear-gradient(135deg, var(--btn-green), #059669);
+            color: #042f24;
+            font-weight: 800;
+            padding: 1.1rem 1.5rem;
+            border-radius: 0.9rem;
+            text-decoration: none;
+            font-size: 1.05rem;
+            box-shadow: 0 10px 20px -5px rgba(16, 185, 129, 0.4);
+            transition: all 0.2s ease;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-download:hover {
+            background: linear-gradient(135deg, var(--btn-green-hover), var(--btn-green));
+            transform: translateY(-2px);
+            box-shadow: 0 15px 25px -5px rgba(16, 185, 129, 0.5);
+        }
+
+        .btn-download:active {
+            transform: translateY(0);
+        }
+
+        .platform-tag {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 0.65rem;
+            margin-bottom: 1.5rem;
+        }
+
+        /* Caja informativa de instalación */
+        .info {
+            font-size: 0.825rem;
+            color: var(--text-muted);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding-top: 1.25rem;
+            text-align: left;
+        }
+
+        .info-header {
+            color: var(--text-soft);
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .info ul {
+            padding-left: 1.25rem;
+            line-height: 1.55;
+        }
+
+        .info li {
+            margin-bottom: 0.35rem;
+        }
+
+        footer {
+            margin-top: 1.5rem;
+            font-size: 0.725rem;
+            color: #64748b;
+            border-top: 1px dashed rgba(255, 255, 255, 0.08);
+            padding-top: 1rem;
+        }
+    </style>
+</head>
+
+<body>
+
+    <main class="card">
+        <div class="badge-ong">
+            <span>☀️</span> Energías Renovables • Yucatán
+        </div>
+
+        <h1>Sol Para <span>Todos</span> AR</h1>
+
+        <div class="author-tag">
+            Diego Arellano Gordillo | Universidad Marista de Mérida
+        </div>
+
+        <p class="desc">
+            Simulador interactivo en 3D y Realidad Aumentada diseñado para capacitar a comunidades locales y
+            desmitificar la energía solar fotovoltaica.
+        </p>
+
+        <!-- 3 Pilares del Proyecto -->
+        <div class="features-grid">
+            <div class="feature-item">
+                <span class="feature-icon">🌅</span>
+                <span class="feature-title">Simulador Solar</span>
+                <span class="feature-sub">Trayectoria del sol (6 AM a 6 PM) y sombras en tiempo real.</span>
+            </div>
+            <div class="feature-item">
+                <span class="feature-icon">🧩</span>
+                <span class="feature-title">Anatomía 3D</span>
+                <span class="feature-sub">Inspección por capas (0% a 100%) sin desmontar hardware.</span>
+            </div>
+            <div class="feature-item">
+                <span class="feature-icon">⚡</span>
+                <span class="feature-title">Flujo Eléctrico</span>
+                <span class="feature-sub">Ruta visible: Paneles ➔ Inversor ➔ Batería ➔ Hogar.</span>
+            </div>
+        </div>
+
+        <!-- ENLACE DE DESCARGA DIRECTA (Reemplaza con el link de tu Release en GitHub) -->
+        <a href="URL_DEL_APK_DE_TU_RELEASE" class="btn-download" download>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            Descargar APK para Android
+        </a>
+
+        <div class="platform-tag">
+            Versión Android • Optimizado a 60 FPS para gama media-baja
+        </div>
+
+        <div class="info">
+            <div class="info-header">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="16" x2="12" y2="12"></line>
+                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                </svg>
+                Guía rápida de instalación:
+            </div>
+            <ul>
+                <li>Descarga el archivo APK directamente en tu teléfono móvil.</li>
+                <li>Toca la notificación de descarga para abrir el instalador.</li>
+                <li>Si Android lo solicita, activa la casilla <em>"Permitir la instalación desde esta fuente"</em>.</li>
+                <li>Abre la app y disfruta la experiencia 3D y de Realidad Aumentada.</li>
+            </ul>
+        </div>
+
+        <footer>
+            Proyecto Final de Gráficos por Computadora • Ingenieria Tecnologías Digitales
+        </footer>
+    </main>
+
+</body>
+
+</html>
