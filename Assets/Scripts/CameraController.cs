@@ -118,9 +118,18 @@ public class CameraController : MonoBehaviour
         if (targetCamera != null)
         {
             targetCamera.allowMSAA = true;
+            targetCamera.rect = new Rect(0f, 0f, 1f, 1f);
+            targetCamera.ResetAspect();
             targetCamera.transform.position = courtyardPosition;
             targetCamera.transform.rotation = Quaternion.Euler(courtyardEuler);
             targetCamera.fieldOfView = defaultFOV;
+
+            UniversalAdditionalCameraData camData = targetCamera.GetComponent<UniversalAdditionalCameraData>();
+            if (camData != null)
+            {
+                camData.antialiasing = AntialiasingMode.FastApproximateAntialiasing;
+                camData.antialiasingQuality = AntialiasingQuality.High;
+            }
 
             currentYaw = courtyardEuler.y;
             currentPitch = courtyardEuler.x;
@@ -130,13 +139,23 @@ public class CameraController : MonoBehaviour
             targetFOV = defaultFOV;
         }
 
-        // Activar MSAA 4x y escala de renderizado nativa 1.0x en URP (PC y Android TBDR)
+        // Configurar Anti-Aliasing seguro para GPU móvil (2x MSAA + FXAA sin HDR para evitar corrupción de tile stride) y 4x en PC
+#if UNITY_ANDROID && !UNITY_EDITOR
+        QualitySettings.antiAliasing = 2;
+        if (GraphicsSettings.currentRenderPipeline is UniversalRenderPipelineAsset urpAsset)
+        {
+            urpAsset.msaaSampleCount = 2;
+            urpAsset.supportsHDR = false;
+            urpAsset.renderScale = 1.0f;
+        }
+#else
         QualitySettings.antiAliasing = 4;
         if (GraphicsSettings.currentRenderPipeline is UniversalRenderPipelineAsset urpAsset)
         {
             urpAsset.msaaSampleCount = 4;
             urpAsset.renderScale = 1.0f;
         }
+#endif
     }
 
     private void Start()

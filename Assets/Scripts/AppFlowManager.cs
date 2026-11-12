@@ -165,7 +165,7 @@ public class AppFlowManager : MonoBehaviour
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920, 1080);
             scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
-            scaler.matchWidthOrHeight = 1.0f;
+            scaler.matchWidthOrHeight = 0.5f;
         }
 
         Transform mainUI = canvas.transform.Find("MainUIPanel");
@@ -1183,6 +1183,14 @@ public class AppFlowManager : MonoBehaviour
     {
         if (panel == null || Screen.width <= 0 || Screen.height <= 0) return;
 
+        // Evitar aplicar un SafeArea vertical transitorio si el dispositivo aún está rotando a horizontal
+        if (Screen.width < Screen.height)
+        {
+            panel.anchorMin = Vector2.zero;
+            panel.anchorMax = Vector2.one;
+            return;
+        }
+
         Rect safe = Screen.safeArea;
         Vector2 min = safe.position;
         Vector2 max = safe.position + safe.size;
@@ -1192,7 +1200,7 @@ public class AppFlowManager : MonoBehaviour
         max.x /= Screen.width;
         max.y /= Screen.height;
 
-        if (min.x >= 0f && min.y >= 0f && max.x <= 1f && max.y <= 1f)
+        if (min.x >= 0f && min.y >= 0f && max.x <= 1f && max.y <= 1f && (max.x - min.x) > 0.7f)
         {
             panel.anchorMin = min;
             panel.anchorMax = max;

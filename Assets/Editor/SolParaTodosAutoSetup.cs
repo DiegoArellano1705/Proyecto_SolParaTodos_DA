@@ -1,4 +1,6 @@
 using UnityEditor;
+using UnityEditor.Build;
+using UnityEditor.Build.Reporting;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
@@ -8,14 +10,62 @@ using UnityEngine.Rendering.Universal;
 using System.IO;
 
 /// <summary>
+/// Asegura automáticamente en memoria de Unity Editor (al compilar scripts y justo antes de crear el APK)
+/// que Android use OpenGLES3 (sin el bug de Vulkan Pre-Transform en horizontal), orientación Landscape fija,
+/// Resizeable Activity desactivado y arquitecturas universales ARMv7 + ARM64.
+/// </summary>
+public class SolParaTodosAndroidBuildPreprocess : IPreprocessBuildWithReport
+{
+    public int callbackOrder => 0;
+
+    public void OnPreprocessBuild(BuildReport report)
+    {
+        SolParaTodosAutoSetup.EnforceAndroidLandscapeAndOpenGLES3();
+    }
+}
+
+/// <summary>
 /// Montaje visual avanzado basado en los bosquejos AR de diseño:
 /// 1. Posiciona la Cámara sobre el Camino Central del Patio (X=10.5, Y=3.2, Z=-14.5) para ver paneles, inversor y casa.
 /// 2. Dial Solar Inferior en Arco (Bosquejo AR 2) con icono del Sol arrastrable y marcas horarias.
 /// 3. Modo 'Ver Capas' con acercamiento al centro geométrico real de 'CeldaFotovoltaica (3)' y Slider Vertical a la derecha (Bosquejo AR 4).
 /// 4. Vincula 'MallaMetalicaPanel', 'PanelCristal_PanelSolar' y 'CeldaSolar' con eje perpendicular real al panel.
 /// </summary>
+[InitializeOnLoad]
 public static class SolParaTodosAutoSetup
 {
+    static SolParaTodosAutoSetup()
+    {
+        EditorApplication.delayCall += EnforceAndroidLandscapeAndOpenGLES3;
+    }
+
+    [MenuItem("Sol Para Todos/Aplicar Fix de Pantalla Horizontal Android (OpenGLES3)")]
+    public static void EnforceAndroidLandscapeAndOpenGLES3()
+    {
+        // 1. Forzar OpenGLES3 y quitar Vulkan (corrige el bug donde la pantalla se aplasta al 45% izquierdo en horizontal)
+        PlayerSettings.SetUseDefaultGraphicsAPIs(BuildTarget.Android, false);
+        PlayerSettings.SetGraphicsAPIs(BuildTarget.Android, new[] { GraphicsDeviceType.OpenGLES3 });
+        PlayerSettings.vulkanEnablePreTransform = false;
+
+        // 2. Bloquear orientación en Landscape (Horizontal) y desactivar Resizeable Activity
+        PlayerSettings.defaultInterfaceOrientation = UIOrientation.LandscapeLeft;
+        PlayerSettings.allowedAutorotateToPortrait = false;
+        PlayerSettings.allowedAutorotateToPortraitUpsideDown = false;
+        PlayerSettings.allowedAutorotateToLandscapeLeft = true;
+        PlayerSettings.allowedAutorotateToLandscapeRight = true;
+        PlayerSettings.Android.resizeableActivity = false;
+        PlayerSettings.Android.renderOutsideSafeArea = false;
+        PlayerSettings.Android.startInFullscreen = true;
+
+        // 3. Compatibilidad universal ARMv7 (32 bits) + ARM64 (64 bits) y Android 6.0+ (API 23)
+        PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARMv7 | AndroidArchitecture.ARM64;
+        PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel23;
+        PlayerSettings.Android.bundleVersionCode = 3;
+
+        AssetDatabase.SaveAssets();
+        Debug.Log("<color=green><b>[SolParaTodos]</b> Configuración Android aplicada en memoria: OpenGLES3 (sin bug de Vulkan), Landscape fijo, ResizeableActivity=OFF, ARMv7+ARM64.</color>");
+    }
+
     [MenuItem("Sol Para Todos/¡Montar Todo en la Escena Automáticamente!")]
     public static void SetupEntireScene()
     {
