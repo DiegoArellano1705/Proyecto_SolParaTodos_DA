@@ -79,6 +79,12 @@ public class AppFlowManager : MonoBehaviour
     private void Awake()
     {
         IsIntroActive = true;
+        Screen.orientation = ScreenOrientation.LandscapeLeft;
+        Screen.autorotateToPortrait = false;
+        Screen.autorotateToPortraitUpsideDown = false;
+        Screen.autorotateToLandscapeLeft = true;
+        Screen.autorotateToLandscapeRight = true;
+
         QualitySettings.vSyncCount = 0;
         Application.targetFrameRate = targetFrameRate;
 
