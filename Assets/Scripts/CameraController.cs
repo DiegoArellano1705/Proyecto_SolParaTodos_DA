@@ -3,6 +3,8 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Events;
 using UnityEngine.InputSystem;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 
 /// <summary>
 /// Controlador de cámara 360° interactivo para SolParaTodos (URP / Android).
@@ -33,6 +35,15 @@ public class CameraController : MonoBehaviour
     [SerializeField] private float inspectDistance = 3.1f;
     [SerializeField] private float transitionDuration = 1.0f;
 
+    [Header("Vista del Pasillo de Paneles y Cableado")]
+    [Tooltip("Inicio del pasillo amarillo (Camino 2) viendo las filas de paneles y cables.")]
+    [SerializeField] private Vector3 walkwayStartPos = new Vector3(4.8f, 3.15f, -10.5f);
+    [Tooltip("Final del pasillo amarillo al fondo de la tercera fila de paneles.")]
+    [SerializeField] private Vector3 walkwayEndPos = new Vector3(-8.2f, 2.75f, -10.5f);
+    [Tooltip("Ángulo inicial en el pasillo (encuadre hacia las filas y el pasillo amarillo).")]
+    [SerializeField] private Vector3 walkwayStartEuler = new Vector3(15f, -78f, 0f);
+    [SerializeField] private float walkwayFOV = 60f;
+
     [Header("Sensibilidad de Giro 360°")]
     [SerializeField] private bool enableLookAround = true;
     [SerializeField] private float dragSensitivity = 0.25f;
@@ -51,7 +62,9 @@ public class CameraController : MonoBehaviour
 
     private Coroutine activeTransitionRoutine;
     private bool isZoomedIn = false;
+    private bool isInWalkwayMode = false;
     private bool isTransitioning = false;
+    private float walkwayProgress = 0f;
 
     private bool wasPressedLastFrame = false;
     private bool isInteractingWithUI = false;
@@ -59,12 +72,17 @@ public class CameraController : MonoBehaviour
 
     private Slider[] cachedSliders;
     private Button modeToggleButton;
+    private Button walkwayToggleButton;
+    private Text walkwayButtonText;
+    private GameObject walkwayDock;
+    private Slider walkwaySlider;
     private Toggle energyFlowToggle;
     private GameObject layersPanelRight;
     private EnergyFlowController energyController;
     private PanelExploder panelExploder;
 
     private float lastModeToggleTime = -10f;
+    private float lastWalkwayToggleTime = -10f;
     private float lastEnergyToggleTime = -10f;
 
     // Ángulos en modo Patio 360°
@@ -99,6 +117,7 @@ public class CameraController : MonoBehaviour
 
         if (targetCamera != null)
         {
+            targetCamera.allowMSAA = true;
             targetCamera.transform.position = courtyardPosition;
             targetCamera.transform.rotation = Quaternion.Euler(courtyardEuler);
             targetCamera.fieldOfView = defaultFOV;
@@ -109,6 +128,14 @@ public class CameraController : MonoBehaviour
             targetPitch = currentPitch;
             currentFOV = defaultFOV;
             targetFOV = defaultFOV;
+        }
+
+        // Activar MSAA 4x y escala de renderizado nativa 1.0x en URP (PC y Android TBDR)
+        QualitySettings.antiAliasing = 4;
+        if (GraphicsSettings.currentRenderPipeline is UniversalRenderPipelineAsset urpAsset)
+        {
+            urpAsset.msaaSampleCount = 4;
+            urpAsset.renderScale = 1.0f;
         }
     }
 
@@ -150,14 +177,232 @@ public class CameraController : MonoBehaviour
         }
 
         RectTransform[] allRects = FindObjectsByType<RectTransform>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        Transform mainUITransform = null;
         foreach (RectTransform rt in allRects)
         {
-            if (rt != null && rt.gameObject.name == "LayersPanel_Right")
+            if (rt == null) continue;
+            if (rt.gameObject.name == "LayersPanel_Right")
             {
                 layersPanelRight = rt.gameObject;
-                break;
+            }
+            else if (rt.gameObject.name == "MainUIPanel")
+            {
+                mainUITransform = rt;
             }
         }
+
+        if (mainUITransform != null)
+        {
+            EnsureWalkwayUIElements(mainUITransform);
+            // Actualizar lista de sliders para incluir el deslizador del pasillo
+            cachedSliders = FindObjectsByType<Slider>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        }
+    }
+
+    private void EnsureWalkwayUIElements(Transform mainUI)
+    {
+        Font boldFont = AppFlowManager.ModernFontBold;
+        Font regFont = AppFlowManager.ModernFontRegular;
+        Sprite pillSprite = AppFlowManager.RuntimeGlassPillSprite;
+        Sprite knobSprite = AppFlowManager.RuntimeCircleKnobSprite;
+
+        // 1. Botón "🚶 Pasillo y Cableado" junto a "🧩 Ver Capas (Despiece)"
+        Transform existingBtn = mainUI.Find("Btn_WalkwayMode");
+        if (existingBtn == null)
+        {
+            GameObject btnGO = new GameObject("Btn_WalkwayMode");
+            btnGO.transform.SetParent(mainUI, false);
+            RectTransform rt = btnGO.AddComponent<RectTransform>();
+            rt.anchorMin = new Vector2(1f, 1f);
+            rt.anchorMax = new Vector2(1f, 1f);
+            rt.pivot = new Vector2(1f, 1f);
+            rt.anchoredPosition = new Vector2(-288f, -22f);
+            rt.sizeDelta = new Vector2(248f, 48f);
+
+            Image img = btnGO.AddComponent<Image>();
+            img.sprite = pillSprite;
+            img.type = Image.Type.Sliced;
+            img.color = new Color(0.08f, 0.24f, 0.36f, 0.92f);
+
+            Outline outline = btnGO.AddComponent<Outline>();
+            outline.effectColor = new Color(1.0f, 0.78f, 0.18f, 0.75f);
+            outline.effectDistance = new Vector2(1.5f, -1.5f);
+
+            walkwayToggleButton = btnGO.AddComponent<Button>();
+            walkwayToggleButton.targetGraphic = img;
+
+            GameObject txtGO = new GameObject("Text");
+            txtGO.transform.SetParent(btnGO.transform, false);
+            RectTransform rtTxt = txtGO.AddComponent<RectTransform>();
+            rtTxt.anchorMin = Vector2.zero;
+            rtTxt.anchorMax = Vector2.one;
+            rtTxt.offsetMin = new Vector2(8f, 2f);
+            rtTxt.offsetMax = new Vector2(-8f, -2f);
+
+            walkwayButtonText = txtGO.AddComponent<Text>();
+            walkwayButtonText.text = "🚶 Pasillo y Cableado";
+            walkwayButtonText.font = boldFont;
+            walkwayButtonText.fontSize = 15;
+            walkwayButtonText.fontStyle = FontStyle.Bold;
+            walkwayButtonText.alignment = TextAnchor.MiddleCenter;
+            walkwayButtonText.color = new Color(1.0f, 0.92f, 0.55f, 1f);
+            walkwayButtonText.raycastTarget = false;
+        }
+        else
+        {
+            walkwayToggleButton = existingBtn.GetComponent<Button>();
+            walkwayButtonText = existingBtn.GetComponentInChildren<Text>(true);
+        }
+
+        if (walkwayToggleButton != null)
+        {
+            walkwayToggleButton.onClick.RemoveListener(ToggleWalkwayMode);
+            walkwayToggleButton.onClick.AddListener(ToggleWalkwayMode);
+        }
+
+        // 2. Barra flotante para desplazarse a lo largo del pasillo amarillo
+        Transform existingDock = mainUI.Find("WalkwayControlDock");
+        if (existingDock == null)
+        {
+            walkwayDock = new GameObject("WalkwayControlDock");
+            walkwayDock.transform.SetParent(mainUI, false);
+            RectTransform rtDock = walkwayDock.AddComponent<RectTransform>();
+            rtDock.anchorMin = new Vector2(0.5f, 1f);
+            rtDock.anchorMax = new Vector2(0.5f, 1f);
+            rtDock.pivot = new Vector2(0.5f, 1f);
+            rtDock.anchoredPosition = new Vector2(0f, -80f);
+            rtDock.sizeDelta = new Vector2(470f, 70f);
+
+            Image dockBg = walkwayDock.AddComponent<Image>();
+            dockBg.sprite = pillSprite;
+            dockBg.type = Image.Type.Sliced;
+            dockBg.color = new Color(0.05f, 0.14f, 0.24f, 0.90f);
+
+            Outline dockOutline = walkwayDock.AddComponent<Outline>();
+            dockOutline.effectColor = new Color(0.15f, 0.82f, 0.98f, 0.65f);
+            dockOutline.effectDistance = new Vector2(1.5f, -1.5f);
+
+            GameObject lblGO = new GameObject("Lbl_WalkwayInfo");
+            lblGO.transform.SetParent(walkwayDock.transform, false);
+            RectTransform rtLbl = lblGO.AddComponent<RectTransform>();
+            rtLbl.anchorMin = new Vector2(0f, 0.52f);
+            rtLbl.anchorMax = new Vector2(1f, 1f);
+            rtLbl.offsetMin = new Vector2(14f, 0f);
+            rtLbl.offsetMax = new Vector2(-14f, -4f);
+
+            Text lblTxt = lblGO.AddComponent<Text>();
+            lblTxt.text = "🚶 RECORRER PASILLO LATERAL  •  FILAS DE PANELES Y CABLEADO";
+            lblTxt.font = boldFont;
+            lblTxt.fontSize = 12;
+            lblTxt.fontStyle = FontStyle.Bold;
+            lblTxt.alignment = TextAnchor.MiddleCenter;
+            lblTxt.color = new Color(0.45f, 0.90f, 1.0f, 1f);
+            lblTxt.raycastTarget = false;
+
+            // Slider horizontal de recorrido por el pasillo
+            GameObject sliderGO = new GameObject("Slider_WalkwayPos");
+            sliderGO.transform.SetParent(walkwayDock.transform, false);
+            RectTransform rtSlider = sliderGO.AddComponent<RectTransform>();
+            rtSlider.anchorMin = new Vector2(0f, 0f);
+            rtSlider.anchorMax = new Vector2(1f, 0.55f);
+            rtSlider.offsetMin = new Vector2(68f, 8f);
+            rtSlider.offsetMax = new Vector2(-68f, -2f);
+
+            GameObject bgTrack = new GameObject("Background");
+            bgTrack.transform.SetParent(sliderGO.transform, false);
+            RectTransform rtBg = bgTrack.AddComponent<RectTransform>();
+            rtBg.anchorMin = new Vector2(0f, 0.35f);
+            rtBg.anchorMax = new Vector2(1f, 0.65f);
+            rtBg.offsetMin = Vector2.zero;
+            rtBg.offsetMax = Vector2.zero;
+            Image imgBg = bgTrack.AddComponent<Image>();
+            imgBg.sprite = pillSprite;
+            imgBg.type = Image.Type.Sliced;
+            imgBg.color = new Color(0.15f, 0.28f, 0.40f, 0.95f);
+
+            GameObject fillArea = new GameObject("Fill Area");
+            fillArea.transform.SetParent(sliderGO.transform, false);
+            RectTransform rtFillArea = fillArea.AddComponent<RectTransform>();
+            rtFillArea.anchorMin = new Vector2(0f, 0.35f);
+            rtFillArea.anchorMax = new Vector2(1f, 0.65f);
+            rtFillArea.offsetMin = Vector2.zero;
+            rtFillArea.offsetMax = Vector2.zero;
+
+            GameObject fill = new GameObject("Fill");
+            fill.transform.SetParent(fillArea.transform, false);
+            RectTransform rtFill = fill.AddComponent<RectTransform>();
+            rtFill.anchorMin = Vector2.zero;
+            rtFill.anchorMax = Vector2.one;
+            rtFill.offsetMin = Vector2.zero;
+            rtFill.offsetMax = Vector2.zero;
+            Image imgFill = fill.AddComponent<Image>();
+            imgFill.sprite = pillSprite;
+            imgFill.type = Image.Type.Sliced;
+            imgFill.color = new Color(1.0f, 0.78f, 0.15f, 0.95f);
+
+            GameObject handleArea = new GameObject("Handle Slide Area");
+            handleArea.transform.SetParent(sliderGO.transform, false);
+            RectTransform rtHandleArea = handleArea.AddComponent<RectTransform>();
+            rtHandleArea.anchorMin = Vector2.zero;
+            rtHandleArea.anchorMax = Vector2.one;
+            rtHandleArea.offsetMin = new Vector2(10f, 0f);
+            rtHandleArea.offsetMax = new Vector2(-10f, 0f);
+
+            GameObject handle = new GameObject("Handle");
+            handle.transform.SetParent(handleArea.transform, false);
+            RectTransform rtHandle = handle.AddComponent<RectTransform>();
+            rtHandle.sizeDelta = new Vector2(24f, 24f);
+            Image imgHandle = handle.AddComponent<Image>();
+            imgHandle.sprite = knobSprite;
+            imgHandle.color = new Color(1.0f, 0.86f, 0.25f, 1f);
+
+            walkwaySlider = sliderGO.AddComponent<Slider>();
+            walkwaySlider.direction = Slider.Direction.LeftToRight;
+            walkwaySlider.minValue = 0f;
+            walkwaySlider.maxValue = 1f;
+            walkwaySlider.value = 0f;
+            walkwaySlider.fillRect = rtFill;
+            walkwaySlider.handleRect = rtHandle;
+            walkwaySlider.targetGraphic = imgHandle;
+            walkwaySlider.onValueChanged.AddListener(SetWalkwayProgress);
+
+            // Etiquetas laterales "Inicio" y "Fondo"
+            CreateSideTag(walkwayDock.transform, "Lbl_Start", "Inicio", new Vector2(0f, 0f), new Vector2(0f, 0.55f), new Vector2(10f, 6f), new Vector2(64f, -2f), regFont);
+            CreateSideTag(walkwayDock.transform, "Lbl_End", "Fondo", new Vector2(1f, 0f), new Vector2(1f, 0.55f), new Vector2(-64f, 6f), new Vector2(-10f, -2f), regFont);
+        }
+        else
+        {
+            walkwayDock = existingDock.gameObject;
+            walkwaySlider = existingDock.GetComponentInChildren<Slider>(true);
+            if (walkwaySlider != null)
+            {
+                walkwaySlider.onValueChanged.RemoveListener(SetWalkwayProgress);
+                walkwaySlider.onValueChanged.AddListener(SetWalkwayProgress);
+            }
+        }
+
+        if (walkwayDock != null)
+        {
+            walkwayDock.SetActive(isInWalkwayMode);
+        }
+    }
+
+    private void CreateSideTag(Transform parent, string name, string text, Vector2 anchorMin, Vector2 anchorMax, Vector2 offsetMin, Vector2 offsetMax, Font font)
+    {
+        GameObject go = new GameObject(name);
+        go.transform.SetParent(parent, false);
+        RectTransform rt = go.AddComponent<RectTransform>();
+        rt.anchorMin = anchorMin;
+        rt.anchorMax = anchorMax;
+        rt.offsetMin = offsetMin;
+        rt.offsetMax = offsetMax;
+        Text t = go.AddComponent<Text>();
+        t.text = text;
+        t.font = font;
+        t.fontSize = 11;
+        t.alignment = TextAnchor.MiddleCenter;
+        t.color = new Color(0.85f, 0.92f, 1f, 0.85f);
+        t.raycastTarget = false;
     }
 
     private void Update()
@@ -168,7 +413,7 @@ public class CameraController : MonoBehaviour
 
         if (!isZoomedIn)
         {
-            // MODO PATIO: Giro libre 360° sin límites horizontales + Zoom con rueda del mouse
+            // MODO PATIO GENERAL O MODO PASILLO DE PANELES: Giro libre 360° + Zoom
             targetYaw += delta.x * dragSensitivity + keyYaw * keyboardRotSpeed * Time.deltaTime;
             targetPitch = Mathf.Clamp(targetPitch - (delta.y * dragSensitivity) + keyPitch * (keyboardRotSpeed * 0.7f) * Time.deltaTime, minPitch, maxPitch);
 
@@ -181,7 +426,11 @@ public class CameraController : MonoBehaviour
             currentPitch = Mathf.Lerp(currentPitch, targetPitch, Time.deltaTime * rotationDamping);
             currentFOV = Mathf.Lerp(currentFOV, targetFOV, Time.deltaTime * rotationDamping);
 
-            targetCamera.transform.position = courtyardPosition;
+            Vector3 desiredPos = isInWalkwayMode
+                ? Vector3.Lerp(walkwayStartPos, walkwayEndPos, walkwayProgress)
+                : courtyardPosition;
+
+            targetCamera.transform.position = Vector3.Lerp(targetCamera.transform.position, desiredPos, Time.deltaTime * rotationDamping);
             targetCamera.transform.rotation = Quaternion.Euler(currentPitch, currentYaw, 0f);
             targetCamera.fieldOfView = currentFOV;
         }
@@ -253,6 +502,11 @@ public class CameraController : MonoBehaviour
                 isInteractingWithUI = true;
                 ToggleInspectMode();
             }
+            else if (IsPointInsideElement(walkwayToggleButton != null ? walkwayToggleButton.GetComponent<RectTransform>() : null, pointerPos, 8f))
+            {
+                isInteractingWithUI = true;
+                ToggleWalkwayMode();
+            }
             else if (IsPointInsideElement(energyFlowToggle != null ? energyFlowToggle.GetComponent<RectTransform>() : null, pointerPos, 8f))
             {
                 isInteractingWithUI = true;
@@ -320,7 +574,7 @@ public class CameraController : MonoBehaviour
 
     private Slider FindHoveredActiveSlider(Vector2 screenPos)
     {
-        if (cachedSliders == null || cachedSliders.Length < 2)
+        if (cachedSliders == null || cachedSliders.Length < 3)
         {
             cachedSliders = FindObjectsByType<Slider>(FindObjectsInactive.Include, FindObjectsSortMode.None);
         }
@@ -379,6 +633,28 @@ public class CameraController : MonoBehaviour
                 if (panelExploder == null) panelExploder = FindFirstObjectByType<PanelExploder>();
                 if (panelExploder != null) panelExploder.SetExplodeProgress(newVal);
             }
+            else if (s.gameObject.name.Contains("Walkway"))
+            {
+                SetWalkwayProgress(newVal);
+            }
+        }
+    }
+
+    public void SetWalkwayProgress(float progress)
+    {
+        float clamped = Mathf.Clamp01(progress);
+        float deltaProgress = clamped - walkwayProgress;
+        walkwayProgress = clamped;
+
+        if (walkwaySlider != null && Mathf.Abs(walkwaySlider.value - clamped) > 0.001f)
+        {
+            walkwaySlider.SetValueWithoutNotify(clamped);
+        }
+
+        // Al avanzar por el pasillo, orientar sutilmente la vista hacia las filas y cableado
+        if (isInWalkwayMode && Mathf.Abs(deltaProgress) > 0.0001f)
+        {
+            targetYaw += deltaProgress * 28f;
         }
     }
 
@@ -432,7 +708,7 @@ public class CameraController : MonoBehaviour
         targetOrbitYaw = orbitYaw;
         inspectDistance = Vector3.Distance(destPos, inspectCenter);
 
-        StartCameraTransition(destPos, destRot, 54f, true);
+        StartCameraTransition(destPos, destRot, 54f, true, false);
     }
 
     private Vector3 GetActualMeshCenter(Transform target)
@@ -463,8 +739,48 @@ public class CameraController : MonoBehaviour
     {
         if (targetCamera == null || isTransitioning) return;
 
-        Quaternion destRot = Quaternion.Euler(currentPitch, currentYaw, 0f);
-        StartCameraTransition(courtyardPosition, destRot, defaultFOV, false);
+        currentPitch = courtyardEuler.x;
+        currentYaw = courtyardEuler.y;
+        targetPitch = courtyardEuler.x;
+        targetYaw = courtyardEuler.y;
+
+        Quaternion destRot = Quaternion.Euler(courtyardEuler.x, courtyardEuler.y, 0f);
+        StartCameraTransition(courtyardPosition, destRot, defaultFOV, false, false);
+    }
+
+    public void EnterWalkwayMode()
+    {
+        if (targetCamera == null || isTransitioning) return;
+
+        // Si el panel estaba despiezado, cerrarlo suavemente para apreciar las filas limpias
+        if (panelExploder == null) panelExploder = FindFirstObjectByType<PanelExploder>();
+        if (panelExploder != null && panelExploder.CurrentProgress > 0.01f)
+        {
+            panelExploder.SetExplodeProgress(0f);
+        }
+
+        walkwayProgress = 0f;
+        if (walkwaySlider != null) walkwaySlider.SetValueWithoutNotify(0f);
+
+        currentPitch = walkwayStartEuler.x;
+        currentYaw = walkwayStartEuler.y;
+        targetPitch = walkwayStartEuler.x;
+        targetYaw = walkwayStartEuler.y;
+
+        Vector3 destPos = Vector3.Lerp(walkwayStartPos, walkwayEndPos, walkwayProgress);
+        Quaternion destRot = Quaternion.Euler(walkwayStartEuler.x, walkwayStartEuler.y, 0f);
+        StartCameraTransition(destPos, destRot, walkwayFOV, false, true);
+    }
+
+    public void ToggleWalkwayMode()
+    {
+        if (Time.unscaledTime - lastWalkwayToggleTime < 0.25f) return;
+        lastWalkwayToggleTime = Time.unscaledTime;
+
+        if (isInWalkwayMode)
+            ResetCamera();
+        else
+            EnterWalkwayMode();
     }
 
     public void ToggleInspectMode()
@@ -478,22 +794,26 @@ public class CameraController : MonoBehaviour
             FocusOnDefaultTarget();
     }
 
-    private void StartCameraTransition(Vector3 targetPos, Quaternion targetRot, float destFOV, bool zoomedState)
+    private void StartCameraTransition(Vector3 targetPos, Quaternion targetRot, float destFOV, bool zoomedState, bool walkwayState)
     {
         if (activeTransitionRoutine != null) StopCoroutine(activeTransitionRoutine);
-        activeTransitionRoutine = StartCoroutine(TransitionRoutine(targetPos, targetRot, destFOV, zoomedState));
+        activeTransitionRoutine = StartCoroutine(TransitionRoutine(targetPos, targetRot, destFOV, zoomedState, walkwayState));
     }
 
-    private IEnumerator TransitionRoutine(Vector3 endPos, Quaternion endRot, float endFOV, bool targetZoomState)
+    private IEnumerator TransitionRoutine(Vector3 endPos, Quaternion endRot, float endFOV, bool targetZoomState, bool targetWalkwayState)
     {
         isTransitioning = true;
         activeDraggedSlider = null;
         isInteractingWithUI = false;
 
-        // Mostrar el panel de capas inmediatamente al entrar a inspección
+        // Mostrar u ocultar paneles contextuales según el modo destino
         if (layersPanelRight != null)
         {
             layersPanelRight.SetActive(targetZoomState);
+        }
+        if (walkwayDock != null)
+        {
+            walkwayDock.SetActive(targetWalkwayState);
         }
 
         onTransitionStarted?.Invoke();
@@ -523,6 +843,7 @@ public class CameraController : MonoBehaviour
         targetFOV = endFOV;
 
         isZoomedIn = targetZoomState;
+        isInWalkwayMode = targetWalkwayState;
         isTransitioning = false;
         activeTransitionRoutine = null;
 
@@ -531,9 +852,19 @@ public class CameraController : MonoBehaviour
             toggleButtonText.text = isZoomedIn ? "↩ Vista Patio 360°" : "🧩 Ver Capas (Despiece)";
         }
 
+        if (walkwayButtonText != null)
+        {
+            walkwayButtonText.text = isInWalkwayMode ? "↩ Vista Patio 360°" : "🚶 Pasillo y Cableado";
+        }
+
         if (layersPanelRight != null)
         {
             layersPanelRight.SetActive(isZoomedIn);
+        }
+
+        if (walkwayDock != null)
+        {
+            walkwayDock.SetActive(isInWalkwayMode);
         }
 
         onZoomStateChanged?.Invoke(isZoomedIn);

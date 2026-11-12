@@ -335,28 +335,56 @@ public class EnergyFlowController : MonoBehaviour
         pulseTransforms = new Transform[PULSE_COUNT];
         pulseRenderers = new Renderer[PULSE_COUNT];
 
+        Mesh lowPolyPulseMesh = CreateLowPolyOctahedronMesh();
+
         for (int i = 0; i < PULSE_COUNT; i++)
         {
-            GameObject sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            sphere.name = $"EnergyPulse_{i}";
+            GameObject sphere = new GameObject($"EnergyPulse_{i}");
             sphere.transform.SetParent(pulsesRoot.transform, false);
             sphere.transform.localScale = new Vector3(0.22f, 0.22f, 0.22f);
 
-            // Eliminar Collider para cero costo físico en Android
-            Collider col = sphere.GetComponent<Collider>();
-            if (col != null) Destroy(col);
+            MeshFilter mf = sphere.AddComponent<MeshFilter>();
+            mf.sharedMesh = lowPolyPulseMesh;
 
-            Renderer r = sphere.GetComponent<Renderer>();
-            if (r != null)
-            {
-                r.sharedMaterial = sharedPulseMaterial;
-                r.shadowCastingMode = ShadowCastingMode.Off;
-                r.receiveShadows = false;
-            }
+            MeshRenderer r = sphere.AddComponent<MeshRenderer>();
+            r.sharedMaterial = sharedPulseMaterial;
+            r.shadowCastingMode = ShadowCastingMode.Off;
+            r.receiveShadows = false;
 
             pulseTransforms[i] = sphere.transform;
             pulseRenderers[i] = r;
         }
+    }
+
+    private static Mesh CreateLowPolyOctahedronMesh()
+    {
+        Mesh m = new Mesh();
+        m.name = "LowPoly_EnergyPulse_Octahedron";
+        Vector3[] verts = new Vector3[]
+        {
+            new Vector3( 0f,  0.5f,  0f), // 0: Top
+            new Vector3( 0f, -0.5f,  0f), // 1: Bottom
+            new Vector3( 0.5f, 0f,  0f),  // 2: +X
+            new Vector3(-0.5f, 0f,  0f),  // 3: -X
+            new Vector3( 0f,  0f,  0.5f), // 4: +Z
+            new Vector3( 0f,  0f, -0.5f)  // 5: -Z
+        };
+        int[] tris = new int[]
+        {
+            0, 4, 2,
+            0, 2, 5,
+            0, 5, 3,
+            0, 3, 4,
+            1, 2, 4,
+            1, 5, 2,
+            1, 3, 5,
+            1, 4, 3
+        };
+        m.vertices = verts;
+        m.triangles = tris;
+        m.RecalculateNormals();
+        m.RecalculateBounds();
+        return m;
     }
 
     private void Animate3DEnergyPulses()

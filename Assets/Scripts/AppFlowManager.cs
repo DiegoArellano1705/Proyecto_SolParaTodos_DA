@@ -49,7 +49,7 @@ public class AppFlowManager : MonoBehaviour
     private Sprite solarFrameGlowSprite;
     private Sprite solarCellBarSprite;
 
-    // Referencias dinámicas de animación de carga solar
+    // Referencias dinámicas de animación de carga solar (Etapa 1)
     private GameObject splashVisualRoot;
     private CanvasGroup splashVisualCanvasGroup;
     private Image splashRadialBorderFill;
@@ -57,6 +57,16 @@ public class AppFlowManager : MonoBehaviour
     private Image splashProgressFill;
     private Text splashChargeStatusText;
 
+    // Etapa 2: Funcionamiento del Sistema de Celdas Solares
+    private GameObject solarCyclePanel;
+    private CanvasGroup solarCycleCanvasGroup;
+    private Image solarCycleRadialBorder;
+    private Image solarCycleOuterGlow;
+    private RectTransform nextToObjectivesButtonRect;
+    private bool waitingForSolarCycleContinue = false;
+    private bool isTransitioningToObjectives = false;
+
+    // Etapa 3: Objetivos e Impacto Social de la Aplicación
     private GameObject objectivesPanel;
     private CanvasGroup objectivesCanvasGroup;
     private Image objectivesRadialBorder;
@@ -415,9 +425,149 @@ public class AppFlowManager : MonoBehaviour
             new Color(1.0f, 0.84f, 0.32f, 0.95f));
 
         // ====================================================================
-        // PANTALLA 2: OBJETIVOS E IMPACTO SOCIAL DEL PROYECTO
+        // PANTALLA 2: ¿CÓMO FUNCIONA UN SISTEMA DE CELDAS SOLARES? (5 ETAPAS)
         // ====================================================================
-        objectivesPanel = new GameObject("ObjectivesScreen_Stage2");
+        solarCyclePanel = new GameObject("SolarCycleScreen_Stage2");
+        solarCyclePanel.transform.SetParent(splashPanel.transform, false);
+
+        RectTransform rtCyclePanel = solarCyclePanel.AddComponent<RectTransform>();
+        rtCyclePanel.anchorMin = Vector2.zero;
+        rtCyclePanel.anchorMax = Vector2.one;
+        rtCyclePanel.sizeDelta = Vector2.zero;
+
+        Image cycleBg = solarCyclePanel.AddComponent<Image>();
+        cycleBg.sprite = blueprintBgSprite;
+        cycleBg.type = Image.Type.Simple;
+        cycleBg.color = Color.white;
+        cycleBg.raycastTarget = true;
+
+        solarCycleCanvasGroup = solarCyclePanel.AddComponent<CanvasGroup>();
+        solarCycleCanvasGroup.alpha = 0f;
+        solarCycleCanvasGroup.blocksRaycasts = true;
+        solarCycleCanvasGroup.interactable = true;
+
+        GameObject cycleCard = CreateSolarFramedCard(
+            solarCyclePanel.transform,
+            "SolarCycleCard",
+            new Vector2(1060f, 680f),
+            out solarCycleOuterGlow,
+            out solarCycleRadialBorder);
+        solarCycleRadialBorder.fillAmount = 1f;
+
+        CreateStyledText(
+            cycleCard.transform,
+            "Tag_Educativo",
+            "⚡  FUNDAMENTOS DE ENERGÍA LIMPIA  •  CICLO SOLAR FOTOVOLTAICO",
+            new Vector2(0f, 292f),
+            new Vector2(920f, 26f),
+            14,
+            FontStyle.Bold,
+            new Color(0.0f, 0.92f, 1.0f, 1f));
+
+        Text cycleTitle = CreateStyledText(
+            cycleCard.transform,
+            "Title_SolarCycle",
+            "¿CÓMO FUNCIONA UN SISTEMA DE CELDAS SOLARES?",
+            new Vector2(0f, 252f),
+            new Vector2(960f, 42f),
+            29,
+            FontStyle.Bold,
+            new Color(1.0f, 0.88f, 0.30f, 1f));
+        AddGlowShadow(cycleTitle.gameObject, new Color(1.0f, 0.65f, 0.0f, 0.4f), new Vector2(0f, -2f));
+
+        CreateStyledText(
+            cycleCard.transform,
+            "Subtitle_CycleIntro",
+            "Un ciclo continuo que transforma la radiación del sol en electricidad limpia y segura para el hogar:",
+            new Vector2(0f, 212f),
+            new Vector2(940f, 28f),
+            16,
+            FontStyle.Normal,
+            new Color(0.88f, 0.95f, 1.0f, 0.95f));
+
+        // Fila Superior: Etapas 1, 2 y 3
+        CreateObjectivePillarCard(
+            cycleCard.transform,
+            new Vector2(-325f, 92f),
+            new Vector2(305f, 178f),
+            new Color(1.0f, 0.82f, 0.22f, 1f),
+            "☀️ 1. CAPTACIÓN SOLAR",
+            "Efecto Fotovoltaico (Silicio)",
+            "La luz solar incide sobre las celdas de silicio (unión P-N), donde los fotones liberan electrones y los ponen en movimiento.");
+
+        CreateObjectivePillarCard(
+            cycleCard.transform,
+            new Vector2(0f, 92f),
+            new Vector2(305f, 178f),
+            new Color(0.0f, 0.90f, 1.0f, 1f),
+            "⚡ 2. CORRIENTE DC",
+            "Generación Continua",
+            "El flujo de electrones libres crea Corriente Continua (DC) de forma constante mientras exista radiación solar.");
+
+        CreateObjectivePillarCard(
+            cycleCard.transform,
+            new Vector2(325f, 92f),
+            new Vector2(305f, 178f),
+            new Color(0.25f, 0.95f, 0.60f, 1f),
+            "🔄 3. INVERSOR (DC ➔ AC)",
+            "Conversión de Energía",
+            "La energía viaja al inversor, que transforma la Corriente Continua (DC) en Corriente Alterna (AC) apta para el hogar.");
+
+        // Fila Inferior: Etapas 4 y 5 (Centradas)
+        CreateObjectivePillarCard(
+            cycleCard.transform,
+            new Vector2(-175f, -104f),
+            new Vector2(330f, 178f),
+            new Color(0.45f, 0.82f, 1.0f, 1f),
+            "🏠 4. DISTRIBUCIÓN Y USO",
+            "Consumo en Tiempo Real",
+            "La Corriente Alterna (AC) llega al cuadro eléctrico de la vivienda para alimentar focos y aparatos al instante.");
+
+        CreateObjectivePillarCard(
+            cycleCard.transform,
+            new Vector2(175f, -104f),
+            new Vector2(330f, 178f),
+            new Color(1.0f, 0.68f, 0.25f, 1f),
+            "🔋 5. EXCEDENTES Y BATERÍA",
+            "Respaldo Nocturno y Medición",
+            "La energía sobrante se guarda en baterías de 12V (o red) para usarse de noche o en días nublados.");
+
+        GameObject btnNextGO = new GameObject("Btn_NextToObjectives");
+        btnNextGO.transform.SetParent(cycleCard.transform, false);
+        nextToObjectivesButtonRect = btnNextGO.AddComponent<RectTransform>();
+        nextToObjectivesButtonRect.anchoredPosition = new Vector2(0f, -252f);
+        nextToObjectivesButtonRect.sizeDelta = new Vector2(460f, 60f);
+
+        Image imgBtnNext = btnNextGO.AddComponent<Image>();
+        imgBtnNext.sprite = RuntimeGlassPillSprite;
+        imgBtnNext.type = Image.Type.Sliced;
+        imgBtnNext.color = new Color(0.0f, 0.78f, 0.96f, 1.0f);
+
+        Outline btnNextOutline = btnNextGO.AddComponent<Outline>();
+        btnNextOutline.effectColor = new Color(1.0f, 0.88f, 0.32f, 0.90f);
+        btnNextOutline.effectDistance = new Vector2(2.5f, -2.5f);
+
+        Button btnNext = btnNextGO.AddComponent<Button>();
+        btnNext.targetGraphic = imgBtnNext;
+        btnNext.onClick.AddListener(OnUserClickedContinueToObjectives);
+
+        Text txtBtnNext = CreateStyledText(
+            btnNextGO.transform,
+            "Label_BtnNext",
+            "SIGUIENTE: OBJETIVOS DE LA APP   ▶",
+            Vector2.zero,
+            new Vector2(440f, 54f),
+            20,
+            FontStyle.Bold,
+            new Color(0.02f, 0.09f, 0.16f, 1f));
+        txtBtnNext.raycastTarget = false;
+
+        solarCyclePanel.SetActive(false);
+
+        // ====================================================================
+        // PANTALLA 3: OBJETIVOS E IMPACTO SOCIAL DEL PROYECTO
+        // ====================================================================
+        objectivesPanel = new GameObject("ObjectivesScreen_Stage3");
         objectivesPanel.transform.SetParent(splashPanel.transform, false);
 
         RectTransform rtObjPanel = objectivesPanel.AddComponent<RectTransform>();
@@ -644,10 +794,12 @@ public class AppFlowManager : MonoBehaviour
         outline.effectColor = new Color(accentColor.r, accentColor.g, accentColor.b, 0.65f);
         outline.effectDistance = new Vector2(2f, -2f);
 
+        float halfH = size.y * 0.5f;
+
         GameObject topAccent = new GameObject("TopAccent");
         topAccent.transform.SetParent(card.transform, false);
         RectTransform rtAcc = topAccent.AddComponent<RectTransform>();
-        rtAcc.anchoredPosition = new Vector2(0f, size.y * 0.5f - 8f);
+        rtAcc.anchoredPosition = new Vector2(0f, halfH - 8f);
         rtAcc.sizeDelta = new Vector2(size.x - 28f, 5f);
         Image imgAcc = topAccent.AddComponent<Image>();
         imgAcc.color = accentColor;
@@ -656,9 +808,9 @@ public class AppFlowManager : MonoBehaviour
             card.transform,
             "Title",
             title,
-            new Vector2(0f, 74f),
-            new Vector2(size.x - 24f, 30f),
-            18,
+            new Vector2(0f, halfH - 32f),
+            new Vector2(size.x - 20f, 28f),
+            size.y < 195f ? 16 : 18,
             FontStyle.Bold,
             accentColor);
 
@@ -666,9 +818,9 @@ public class AppFlowManager : MonoBehaviour
             card.transform,
             "Subtitle",
             subtitle,
-            new Vector2(0f, 44f),
-            new Vector2(size.x - 24f, 24f),
-            13,
+            new Vector2(0f, halfH - 58f),
+            new Vector2(size.x - 20f, 22f),
+            12,
             FontStyle.Bold,
             new Color(0.95f, 0.98f, 1.0f, 0.95f));
 
@@ -676,9 +828,9 @@ public class AppFlowManager : MonoBehaviour
             card.transform,
             "Body",
             body,
-            new Vector2(0f, -28f),
-            new Vector2(size.x - 30f, 115f),
-            14,
+            new Vector2(0f, -24f),
+            new Vector2(size.x - 26f, size.y - 84f),
+            size.y < 195f ? 13 : 14,
             FontStyle.Normal,
             new Color(0.80f, 0.89f, 0.97f, 0.95f));
     }
@@ -761,26 +913,22 @@ public class AppFlowManager : MonoBehaviour
 
     private void Update()
     {
-        if (!waitingForObjectivesContinue || isExitingObjectives) return;
+        if ((!waitingForSolarCycleContinue && !waitingForObjectivesContinue) || isTransitioningToObjectives || isExitingObjectives)
+            return;
 
-        // Animación continua del Marco de Celda Solar en la Pantalla 2 (Objetivos)
+        // Animación continua del Marco de Celda Solar en las pantallas 2 y 3
         float pulse = 0.5f + 0.5f * Mathf.Sin(Time.time * 3.2f);
-        if (objectivesOuterGlow != null)
-        {
-            objectivesOuterGlow.color = Color.Lerp(
-                new Color(0.0f, 0.85f, 1.0f, 0.75f),
-                new Color(1.0f, 0.85f, 0.20f, 0.95f),
-                pulse);
-        }
-        if (objectivesRadialBorder != null)
-        {
-            objectivesRadialBorder.color = Color.Lerp(
-                new Color(1.0f, 0.86f, 0.18f, 1.0f),
-                new Color(0.15f, 0.95f, 1.0f, 1.0f),
-                1f - pulse);
-        }
+        Color glowA = new Color(0.0f, 0.85f, 1.0f, 0.75f);
+        Color glowB = new Color(1.0f, 0.85f, 0.20f, 0.95f);
+        Color radA = new Color(1.0f, 0.86f, 0.18f, 1.0f);
+        Color radB = new Color(0.15f, 0.95f, 1.0f, 1.0f);
 
-        // Detección directa táctil / mouse / teclado para el botón "EXPLORAR SISTEMA SOLAR 3D"
+        if (solarCycleOuterGlow != null) solarCycleOuterGlow.color = Color.Lerp(glowA, glowB, pulse);
+        if (solarCycleRadialBorder != null) solarCycleRadialBorder.color = Color.Lerp(radA, radB, 1f - pulse);
+        if (objectivesOuterGlow != null) objectivesOuterGlow.color = Color.Lerp(glowA, glowB, pulse);
+        if (objectivesRadialBorder != null) objectivesRadialBorder.color = Color.Lerp(radA, radB, 1f - pulse);
+
+        // Detección directa táctil / mouse / teclado para los botones de avance
         bool isPressed = false;
         Vector2 pointerPos = Vector2.zero;
 
@@ -795,18 +943,40 @@ public class AppFlowManager : MonoBehaviour
             pointerPos = Mouse.current.position.ReadValue();
         }
 
-        if (isPressed && !wasPointerPressed && startButtonRect != null)
+        if (isPressed && !wasPointerPressed)
         {
-            if (RectTransformUtility.ScreenPointToLocalPointInRectangle(startButtonRect, pointerPos, null, out Vector2 localPt))
+            if (waitingForSolarCycleContinue && nextToObjectivesButtonRect != null)
             {
-                Rect r = startButtonRect.rect;
-                r.xMin -= 24f;
-                r.xMax += 24f;
-                r.yMin -= 16f;
-                r.yMax += 16f;
-                if (r.Contains(localPt))
+                if (RectTransformUtility.ScreenPointToLocalPointInRectangle(nextToObjectivesButtonRect, pointerPos, null, out Vector2 localPt))
                 {
-                    OnUserClickedStartExperience();
+                    Rect r = nextToObjectivesButtonRect.rect;
+                    r.xMin -= 24f;
+                    r.xMax += 24f;
+                    r.yMin -= 16f;
+                    r.yMax += 16f;
+                    if (r.Contains(localPt))
+                    {
+                        wasPointerPressed = true;
+                        OnUserClickedContinueToObjectives();
+                        return;
+                    }
+                }
+            }
+            else if (waitingForObjectivesContinue && startButtonRect != null)
+            {
+                if (RectTransformUtility.ScreenPointToLocalPointInRectangle(startButtonRect, pointerPos, null, out Vector2 localPt))
+                {
+                    Rect r = startButtonRect.rect;
+                    r.xMin -= 24f;
+                    r.xMax += 24f;
+                    r.yMin -= 16f;
+                    r.yMax += 16f;
+                    if (r.Contains(localPt))
+                    {
+                        wasPointerPressed = true;
+                        OnUserClickedStartExperience();
+                        return;
+                    }
                 }
             }
         }
@@ -815,13 +985,24 @@ public class AppFlowManager : MonoBehaviour
 
         if (Keyboard.current != null && (Keyboard.current.spaceKey.wasPressedThisFrame || Keyboard.current.enterKey.wasPressedThisFrame))
         {
-            OnUserClickedStartExperience();
+            if (waitingForSolarCycleContinue)
+                OnUserClickedContinueToObjectives();
+            else if (waitingForObjectivesContinue)
+                OnUserClickedStartExperience();
         }
+    }
+
+    public void OnUserClickedContinueToObjectives()
+    {
+        if (isTransitioningToObjectives || !waitingForSolarCycleContinue) return;
+        waitingForSolarCycleContinue = false;
+        isTransitioningToObjectives = true;
+        StartCoroutine(TransitionSolarCycleToObjectivesRoutine());
     }
 
     public void OnUserClickedStartExperience()
     {
-        if (isExitingObjectives) return;
+        if (isExitingObjectives || !waitingForObjectivesContinue) return;
         waitingForObjectivesContinue = false;
         isExitingObjectives = true;
         StartCoroutine(ExitObjectivesToMainHUDRoutine());
@@ -873,8 +1054,43 @@ public class AppFlowManager : MonoBehaviour
             yield return null;
         }
 
-        // Cross-fade suave de Pantalla 1 (SplashVisualRoot) -> Pantalla 2 (ObjectivesPanel)
-        // IMPORTANTE: Nunca desactivar splashPanel (this.gameObject) aquí para que la corrutina y Update sigan vivos
+        // Cross-fade suave de Pantalla 1 (SplashVisualRoot) -> Pantalla 2 (SolarCyclePanel)
+        if (solarCyclePanel != null)
+        {
+            solarCyclePanel.SetActive(true);
+            solarCycleCanvasGroup.alpha = 0f;
+            solarCycleCanvasGroup.blocksRaycasts = true;
+        }
+
+        float fadeElapsed = 0f;
+        while (fadeElapsed < fadeDuration)
+        {
+            fadeElapsed += Time.deltaTime;
+            float t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(fadeElapsed / fadeDuration));
+
+            if (splashVisualCanvasGroup != null) splashVisualCanvasGroup.alpha = 1f - t;
+            if (solarCycleCanvasGroup != null) solarCycleCanvasGroup.alpha = t;
+
+            yield return null;
+        }
+
+        if (splashVisualRoot != null)
+        {
+            splashVisualRoot.SetActive(false);
+        }
+
+        if (solarCycleCanvasGroup != null)
+        {
+            solarCycleCanvasGroup.alpha = 1f;
+            solarCycleCanvasGroup.blocksRaycasts = true;
+        }
+
+        waitingForSolarCycleContinue = true;
+        wasPointerPressed = false;
+    }
+
+    private IEnumerator TransitionSolarCycleToObjectivesRoutine()
+    {
         if (objectivesPanel != null)
         {
             objectivesPanel.SetActive(true);
@@ -888,15 +1104,15 @@ public class AppFlowManager : MonoBehaviour
             fadeElapsed += Time.deltaTime;
             float t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(fadeElapsed / fadeDuration));
 
-            if (splashVisualCanvasGroup != null) splashVisualCanvasGroup.alpha = 1f - t;
+            if (solarCycleCanvasGroup != null) solarCycleCanvasGroup.alpha = 1f - t;
             if (objectivesCanvasGroup != null) objectivesCanvasGroup.alpha = t;
 
             yield return null;
         }
 
-        if (splashVisualRoot != null)
+        if (solarCyclePanel != null)
         {
-            splashVisualRoot.SetActive(false);
+            solarCyclePanel.SetActive(false);
         }
 
         if (objectivesCanvasGroup != null)
@@ -905,6 +1121,7 @@ public class AppFlowManager : MonoBehaviour
             objectivesCanvasGroup.blocksRaycasts = true;
         }
 
+        isTransitioningToObjectives = false;
         waitingForObjectivesContinue = true;
         wasPointerPressed = false;
     }
